@@ -383,7 +383,7 @@ extern "C" fn perf_signal_handler(
 }
 
 impl Profiler {
-    fn new() -> Result<Self> {
+    pub fn new() -> Result<Self> {
         Ok(Profiler {
             data: Collector::new()?,
             sample_counter: 0,

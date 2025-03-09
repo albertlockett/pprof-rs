@@ -35,11 +35,12 @@ type FramesPostProcessor = Box<dyn Fn(&mut Frames)>;
 pub struct ReportBuilder<'a> {
     frames_post_processor: Option<FramesPostProcessor>,
     profiler: &'a RwLock<Result<Profiler>>,
+    // TODO(albertlocektt) - devrais ca soit Optional?
     timing: ReportTiming,
 }
 
 impl<'a> ReportBuilder<'a> {
-    pub(crate) fn new(profiler: &'a RwLock<Result<Profiler>>, timing: ReportTiming) -> Self {
+    pub fn new(profiler: &'a RwLock<Result<Profiler>>, timing: ReportTiming) -> Self {
         Self {
             frames_post_processor: None,
             profiler,
@@ -103,6 +104,8 @@ impl<'a> ReportBuilder<'a> {
 
         match self.profiler.write().as_mut() {
             Err(err) => {
+                // TODO: (albertlockett) ca c'est un erreur bizarre a mon avis. corriger?
+                // e.g. devrait dit "Error building report" maybe?
                 log::error!("Error in creating profiler: {}", err);
                 Err(Error::CreatingError)
             }
