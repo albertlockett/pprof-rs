@@ -53,6 +53,7 @@ mod error;
 mod frames;
 mod profiler;
 mod report;
+mod sample;
 mod timer;
 
 pub use self::addr_validate::validate;
@@ -61,6 +62,7 @@ pub use self::error::{Error, Result};
 pub use self::frames::{Frames, Symbol};
 pub use self::profiler::{Profiler, ProfilerGuard, ProfilerGuardBuilder};
 pub use self::report::{Report, ReportBuilder, UnresolvedReport};
+pub use self::sample::{SampleType, SampleTypes, Unit};
 pub use self::timer::ReportTiming;
 
 #[cfg(feature = "flamegraph")]

@@ -8,6 +8,7 @@ use parking_lot::RwLock;
 use crate::frames::{Frames, UnresolvedFrames};
 use crate::profiler::Profiler;
 use crate::timer::ReportTiming;
+use crate::sample::SampleTypes;
 
 use crate::{Error, Result};
 
@@ -18,6 +19,9 @@ pub struct Report {
 
     /// Collection frequency, start time, duration.
     pub timing: ReportTiming,
+
+    /// Descriptions of the samples associated with each Sample.value
+    pub sample_types: SampleTypes,
 }
 
 /// The presentation of an unsymbolicated report which is actually an `HashMap` from `UnresolvedFrames` to isize (count).
@@ -35,16 +39,24 @@ type FramesPostProcessor = Box<dyn Fn(&mut Frames)>;
 pub struct ReportBuilder<'a> {
     frames_post_processor: Option<FramesPostProcessor>,
     profiler: &'a RwLock<Result<Profiler>>,
-    // TODO(albertlocektt) - devrais ca soit Optional?
+    // TODO(albertlocektt) - soit Optional?
     timing: ReportTiming,
+
+    /// Descriptions of the samples associated with each Sample.value
+    sample_types: Option<SampleTypes>,
 }
 
 impl<'a> ReportBuilder<'a> {
-    pub fn new(profiler: &'a RwLock<Result<Profiler>>, timing: ReportTiming) -> Self {
+    pub fn new(
+        profiler: &'a RwLock<Result<Profiler>>,
+        timing: ReportTiming,
+        sample_types: Option<SampleTypes>
+    ) -> Self {
         Self {
             frames_post_processor: None,
             profiler,
             timing,
+            sample_types,
         }
     }
 
@@ -137,11 +149,13 @@ impl<'a> ReportBuilder<'a> {
                 Ok(Report {
                     data: hash_map,
                     timing: self.timing.clone(),
+                    sample_types: self.sample_types.clone().unwrap_or_default(),
                 })
             }
         }
     }
 }
+
 
 /// This will generate Report in a human-readable format:
 ///
@@ -222,10 +236,7 @@ mod protobuf {
     use std::collections::HashSet;
     use std::time::SystemTime;
 
-    const SAMPLES: &str = "samples";
-    const COUNT: &str = "count";
-    const CPU: &str = "cpu";
-    const NANOSECONDS: &str = "nanoseconds";
+
     const THREAD: &str = "thread";
 
     impl Report {
@@ -242,10 +253,14 @@ mod protobuf {
                     }
                 }
             }
-            dedup_str.insert(SAMPLES.into());
-            dedup_str.insert(COUNT.into());
-            dedup_str.insert(CPU.into());
-            dedup_str.insert(NANOSECONDS.into());
+            // dedup_str.insert(SAMPLES.into());
+            // dedup_str.insert(COUNT.into());
+            // dedup_str.insert(CPU.into());
+            // dedup_str.insert(NANOSECONDS.into());
+            for value_type in self.sample_types.descriptions.iter() {
+                dedup_str.insert(value_type.ty.clone());
+                dedup_str.insert(String::from(&value_type.unit));
+            }
             dedup_str.insert(THREAD.into());
             // string table's first element must be an empty string
             let mut str_tbl = vec!["".to_owned()];
@@ -303,29 +318,42 @@ mod protobuf {
                     str: *strings.get(&key.thread_name_or_id().as_str()).unwrap() as i64,
                     ..protos::Label::default()
                 };
+
+                let values = self.sample_types.descriptions.iter().map(|sample_type| {
+                    sample_type.unit.to_sample_value(*count as i64, &self.timing)
+                }).collect::<Vec<_>>();
                 let sample = protos::Sample {
                     location_id: locs,
-                    value: vec![
-                        *count as i64,
-                        *count as i64 * 1_000_000_000 / self.timing.frequency as i64,
-                    ],
+                    // value: vec![
+                    //     *count as i64,
+                    //     *count as i64 * 1_000_000_000 / self.timing.frequency as i64,
+                    // ],
+                    value: values,
                     label: vec![thread_name].into(),
                     ..Default::default()
                 };
                 samples.push(sample);
             }
-            let samples_value = protos::ValueType {
-                ty: *strings.get(SAMPLES).unwrap() as i64,
-                unit: *strings.get(COUNT).unwrap() as i64,
-                ..Default::default()
-            };
-            let time_value = protos::ValueType {
-                ty: *strings.get(CPU).unwrap() as i64,
-                unit: *strings.get(NANOSECONDS).unwrap() as i64,
-                ..Default::default()
-            };
+            // let samples_value = protos::ValueType {
+            //     ty: *strings.get(SAMPLES).unwrap() as i64,
+            //     unit: *strings.get(COUNT).unwrap() as i64,
+            //     ..Default::default()
+            // };
+            // let time_value = protos::ValueType {
+            //     ty: *strings.get(CPU).unwrap() as i64,
+            //     unit: *strings.get(NANOSECONDS).unwrap() as i64,
+            //     ..Default::default()
+            // };
+            let sample_types = self.sample_types.descriptions.iter().map(|value_type| {
+                protos::ValueType {
+                    ty: *strings.get(&value_type.ty.as_str()).unwrap() as i64,
+                    unit: *strings.get(String::from(&value_type.unit).as_str()).unwrap() as i64,
+                    ..Default::default()
+                }
+            }).collect::<Vec<_>>();
             let profile = protos::Profile {
-                sample_type: vec![samples_value, time_value.clone()].into(),
+                // sample_type: vec![samples_value, time_value.clone()].into(),
+                sample_type: sample_types.into(),
                 sample: samples.into(),
                 string_table: str_tbl.into(),
                 function: fn_tbl.into(),
@@ -337,7 +365,9 @@ mod protobuf {
                     .unwrap_or_default()
                     .as_nanos() as i64,
                 duration_nanos: self.timing.duration.as_nanos() as i64,
-                period_type: Some(time_value).into(),
+                // period_type: Some(time_value).into(),
+                // TODO(albertlockett) - mettre None ou Some
+                period_type: None.into(),
                 period: 1_000_000_000 / self.timing.frequency as i64,
                 ..protos::Profile::default()
             };
