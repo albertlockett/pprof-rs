@@ -19,10 +19,7 @@ pub struct Trace {}
 impl super::Trace for Trace {
     type Frame = backtrace::Frame;
 
-    fn trace<F: FnMut(&Self::Frame) -> bool>(_: *mut libc::c_void, cb: F) {
+    fn trace<F: FnMut(&Self::Frame) -> bool>(cb: F) {
         unsafe { backtrace::trace_unsynchronized(cb) }
     }
 }
-
-pub use backtrace::Frame;
-pub use backtrace::Symbol;

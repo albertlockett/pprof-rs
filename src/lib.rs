@@ -62,7 +62,7 @@ pub use self::error::{Error, Result};
 pub use self::frames::{Frames, Symbol};
 pub use self::profiler::{Profiler, ProfilerGuard, ProfilerGuardBuilder};
 pub use self::report::{Report, ReportBuilder, UnresolvedReport};
-pub use self::sample::{SampleType, SampleTypes, Unit};
+pub use self::sample::{sample_current, SampleType, SampleTypes, Unit};
 pub use self::timer::ReportTiming;
 
 #[cfg(feature = "flamegraph")]

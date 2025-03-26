@@ -36,10 +36,10 @@ pub trait Frame: Sized + Clone {
     fn ip(&self) -> usize;
 }
 
-pub trait Trace {
+pub(crate) trait Trace {
     type Frame;
 
-    fn trace<F: FnMut(&Self::Frame) -> bool>(_: *mut libc::c_void, cb: F)
+    fn trace<F: FnMut(&Self::Frame) -> bool>(cb: F)
     where
         Self: Sized;
 }

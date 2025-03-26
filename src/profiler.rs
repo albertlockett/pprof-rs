@@ -22,6 +22,7 @@ use crate::collector::Collector;
 use crate::error::{Error, Result};
 use crate::frames::UnresolvedFrames;
 use crate::report::ReportBuilder;
+use crate::sample::Sample;
 use crate::timer::Timer;
 use crate::{MAX_DEPTH, MAX_THREAD_NAME};
 
@@ -355,7 +356,7 @@ extern "C" fn perf_signal_handler(
             let mut index = 0;
 
             let sample_timestamp: SystemTime = SystemTime::now();
-            TraceImpl::trace(ucontext, |frame| {
+            TraceImpl::trace(|frame| {
                 #[cfg(feature = "frame-pointer")]
                 {
                     let ip = crate::backtrace::Frame::ip(frame);
@@ -380,7 +381,18 @@ extern "C" fn perf_signal_handler(
             write_thread_name(current_thread, &mut name);
 
             let name = unsafe { std::ffi::CStr::from_ptr(name_ptr) };
-            profiler.sample(bt, name.to_bytes(), current_thread as u64, sample_timestamp);
+
+            // let name_bytes = name.to_owned().into_bytes();
+            // let (first_16, _) = name_bytes.split_at(16);
+            // let thread_name: [u8; MAX_THREAD_NAME] = first_16.try_into().unwrap();
+            
+            profiler.sample(Sample {
+                backtrace: bt,
+                thread_name: name.to_bytes().into(),
+                thread_id: current_thread as u64, 
+                timestamp: sample_timestamp,
+                count: 1,
+            });
         }
     }
 }
@@ -475,13 +487,14 @@ impl Profiler {
     // This function has to be AS-safe
     pub fn sample(
         &mut self,
-        backtrace: SmallVec<[<TraceImpl as Trace>::Frame; MAX_DEPTH]>,
-        thread_name: &[u8],
-        thread_id: u64,
-        sample_timestamp: SystemTime,
+        // backtrace: SmallVec<[<TraceImpl as Trace>::Frame; MAX_DEPTH]>,
+        sample: Sample,
+        // thread_name: &[u8],
+        // thread_id: u64,
+        // sample_timestamp: SystemTime,
     ) {
-        let frames = UnresolvedFrames::new(backtrace, thread_name, thread_id, sample_timestamp);
-        self.sample_counter += 1;
+        let frames = UnresolvedFrames::new(sample.backtrace, &sample.thread_name, sample.thread_id, sample.timestamp);
+        self.sample_counter += sample.count;
 
         if let Ok(()) = self.data.add(frames, 1) {}
     }
