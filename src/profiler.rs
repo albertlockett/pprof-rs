@@ -24,7 +24,7 @@ use crate::frames::UnresolvedFrames;
 use crate::report::ReportBuilder;
 use crate::sample::Sample;
 use crate::timer::Timer;
-use crate::{MAX_DEPTH, MAX_THREAD_NAME};
+use crate::{sample_current, MAX_DEPTH, MAX_THREAD_NAME};
 
 pub(crate) static PROFILER: Lazy<RwLock<Result<Profiler>>> =
     Lazy::new(|| RwLock::new(Profiler::new()));
@@ -215,15 +215,13 @@ fn write_thread_name_fallback(current_thread: libc::pthread_t, name: &mut [libc:
     }
 }
 
-// TODO (albertlockett) deplacer a sample?
-
 #[cfg(not(all(any(target_os = "linux", target_os = "macos"), target_env = "gnu")))]
-pub fn write_thread_name(current_thread: libc::pthread_t, name: &mut [libc::c_char]) {
+pub(crate) fn write_thread_name(current_thread: libc::pthread_t, name: &mut [libc::c_char]) {
     write_thread_name_fallback(current_thread, name);
 }
 
 #[cfg(all(any(target_os = "linux", target_os = "macos"), target_env = "gnu"))]
-pub fn write_thread_name(current_thread: libc::pthread_t, name: &mut [libc::c_char]) {
+pub(crate) fn write_thread_name(current_thread: libc::pthread_t, name: &mut [libc::c_char]) {
     let name_ptr = name as *mut [libc::c_char] as *mut libc::c_char;
     let ret = unsafe { libc::pthread_getname_np(current_thread, name_ptr, MAX_THREAD_NAME) };
 
@@ -351,48 +349,8 @@ extern "C" fn perf_signal_handler(
                 }
             }
 
-            let mut bt: SmallVec<[<TraceImpl as Trace>::Frame; MAX_DEPTH]> =
-                SmallVec::with_capacity(MAX_DEPTH);
-            let mut index = 0;
-
-            let sample_timestamp: SystemTime = SystemTime::now();
-            TraceImpl::trace(|frame| {
-                #[cfg(feature = "frame-pointer")]
-                {
-                    let ip = crate::backtrace::Frame::ip(frame);
-                    if profiler.is_blocklisted(ip) {
-                        return false;
-                    }
-                }
-
-                if index < MAX_DEPTH {
-                    bt.push(frame.clone());
-                    index += 1;
-                    true
-                } else {
-                    false
-                }
-            });
-
-            let current_thread = unsafe { libc::pthread_self() };
-            let mut name = [0; MAX_THREAD_NAME];
-            let name_ptr = &mut name as *mut [libc::c_char] as *mut libc::c_char;
-
-            write_thread_name(current_thread, &mut name);
-
-            let name = unsafe { std::ffi::CStr::from_ptr(name_ptr) };
-
-            // let name_bytes = name.to_owned().into_bytes();
-            // let (first_16, _) = name_bytes.split_at(16);
-            // let thread_name: [u8; MAX_THREAD_NAME] = first_16.try_into().unwrap();
-            
-            profiler.sample(Sample {
-                backtrace: bt,
-                thread_name: name.to_bytes().into(),
-                thread_id: current_thread as u64, 
-                timestamp: sample_timestamp,
-                count: 1,
-            });
+            let sample = sample_current(1);
+            profiler.sample(sample);
         }
     }
 }
@@ -493,7 +451,12 @@ impl Profiler {
         // thread_id: u64,
         // sample_timestamp: SystemTime,
     ) {
-        let frames = UnresolvedFrames::new(sample.backtrace, &sample.thread_name, sample.thread_id, sample.timestamp);
+        let frames = UnresolvedFrames::new(
+            sample.backtrace,
+            &sample.thread_name,
+            sample.thread_id,
+            sample.timestamp,
+        );
         self.sample_counter += sample.count;
 
         if let Ok(()) = self.data.add(frames, 1) {}

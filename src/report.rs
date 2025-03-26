@@ -7,8 +7,8 @@ use parking_lot::RwLock;
 
 use crate::frames::{Frames, UnresolvedFrames};
 use crate::profiler::Profiler;
-use crate::timer::ReportTiming;
 use crate::sample::SampleTypes;
+use crate::timer::ReportTiming;
 
 use crate::{Error, Result};
 
@@ -50,7 +50,7 @@ impl<'a> ReportBuilder<'a> {
     pub fn new(
         profiler: &'a RwLock<Result<Profiler>>,
         timing: ReportTiming,
-        sample_types: Option<SampleTypes>
+        sample_types: Option<SampleTypes>,
     ) -> Self {
         Self {
             frames_post_processor: None,
@@ -156,7 +156,6 @@ impl<'a> ReportBuilder<'a> {
     }
 }
 
-
 /// This will generate Report in a human-readable format:
 ///
 /// ```shell
@@ -235,7 +234,6 @@ mod protobuf {
     use crate::protos;
     use std::collections::HashSet;
     use std::time::SystemTime;
-
 
     const THREAD: &str = "thread";
 
@@ -319,9 +317,16 @@ mod protobuf {
                     ..protos::Label::default()
                 };
 
-                let values = self.sample_types.descriptions.iter().map(|sample_type| {
-                    sample_type.unit.to_sample_value(*count as i64, &self.timing)
-                }).collect::<Vec<_>>();
+                let values = self
+                    .sample_types
+                    .descriptions
+                    .iter()
+                    .map(|sample_type| {
+                        sample_type
+                            .unit
+                            .to_sample_value(*count as i64, &self.timing)
+                    })
+                    .collect::<Vec<_>>();
                 let sample = protos::Sample {
                     location_id: locs,
                     // value: vec![
@@ -344,13 +349,18 @@ mod protobuf {
             //     unit: *strings.get(NANOSECONDS).unwrap() as i64,
             //     ..Default::default()
             // };
-            let sample_types = self.sample_types.descriptions.iter().map(|value_type| {
-                protos::ValueType {
+            let sample_types = self
+                .sample_types
+                .descriptions
+                .iter()
+                .map(|value_type| protos::ValueType {
                     ty: *strings.get(&value_type.ty.as_str()).unwrap() as i64,
-                    unit: *strings.get(String::from(&value_type.unit).as_str()).unwrap() as i64,
+                    unit: *strings
+                        .get(String::from(&value_type.unit).as_str())
+                        .unwrap() as i64,
                     ..Default::default()
-                }
-            }).collect::<Vec<_>>();
+                })
+                .collect::<Vec<_>>();
             let profile = protos::Profile {
                 // sample_type: vec![samples_value, time_value.clone()].into(),
                 sample_type: sample_types.into(),

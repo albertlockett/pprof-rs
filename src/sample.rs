@@ -1,12 +1,11 @@
 use std::time::SystemTime;
 
-
 use backtrace::Frame;
 use smallvec::SmallVec;
 
-use crate::{MAX_DEPTH, MAX_THREAD_NAME};
-use crate::backtrace::{TraceImpl, Trace};
+use crate::backtrace::{Trace, TraceImpl};
 use crate::timer::ReportTiming;
+use crate::{MAX_DEPTH, MAX_THREAD_NAME};
 
 pub struct Sample {
     pub(crate) backtrace: SmallVec<[<TraceImpl as Trace>::Frame; MAX_DEPTH]>,
@@ -17,21 +16,17 @@ pub struct Sample {
     pub(crate) count: i32,
 }
 
+#[inline]
 #[no_mangle]
 #[allow(clippy::unnecessary_cast)]
-pub extern "C" fn sample_current() -> Sample {
+pub fn sample_current(count: i32) -> Sample {
     let current_thread = unsafe { libc::pthread_self() };
     let mut name = [0i8; MAX_THREAD_NAME];
     let name_ptr = &mut name as *mut [libc::c_char] as *mut libc::c_char;
     crate::profiler::write_thread_name(current_thread, &mut name);
     let thread_name = unsafe { std::ffi::CStr::from_ptr(name_ptr) };
 
-    // println!("name is '{:?}'", name);
-    // let name_bytes = name.to_owned().into_bytes();
-    // let (first_16, _) = name_bytes.split_at(16);
-    // let thread_name: [u8; MAX_THREAD_NAME] = first_16.try_into().unwrap();
-    
-    let mut bt: SmallVec<[<TraceImpl as Trace>::Frame; MAX_DEPTH]> = 
+    let mut bt: SmallVec<[<TraceImpl as Trace>::Frame; MAX_DEPTH]> =
         SmallVec::with_capacity(MAX_DEPTH);
     let mut index = 0;
 
@@ -58,7 +53,7 @@ pub extern "C" fn sample_current() -> Sample {
         thread_name: thread_name.to_owned().into(),
         thread_id: current_thread as u64,
         timestamp: SystemTime::now(),
-        count: 1,
+        count,
     }
 }
 
@@ -96,7 +91,6 @@ impl Default for SampleTypes {
     }
 }
 
-
 /// A description of a sample type.
 /// For example, for a CPU prpfile it might be:
 /// `SampleType { ty: "cpu", unit: "nanoseconds" }`
@@ -122,7 +116,6 @@ impl SampleType {
 pub struct SampleTypes {
     pub descriptions: Vec<SampleType>,
 }
-
 
 #[derive(Debug, Clone)]
 pub enum Unit {
