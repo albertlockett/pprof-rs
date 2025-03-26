@@ -20,6 +20,7 @@ use crate::frames::UnresolvedFrames;
 use crate::report::ReportBuilder;
 use crate::sample::{sample_current, Sample};
 use crate::timer::Timer;
+use crate::SampleTypes;
 
 pub(crate) static PROFILER: Lazy<RwLock<Result<Profiler>>> =
     Lazy::new(|| RwLock::new(Profiler::new()));
@@ -166,7 +167,7 @@ impl ProfilerGuard<'_> {
         ReportBuilder::new(
             self.profiler,
             self.timer.as_ref().map(Timer::timing).unwrap_or_default(),
-            None,
+            SampleTypes::default(),
         )
     }
 }

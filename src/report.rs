@@ -39,18 +39,17 @@ type FramesPostProcessor = Box<dyn Fn(&mut Frames)>;
 pub struct ReportBuilder<'a> {
     frames_post_processor: Option<FramesPostProcessor>,
     profiler: &'a RwLock<Result<Profiler>>,
-    // TODO(albertlocektt) - Optional?
     timing: ReportTiming,
 
     /// Descriptions of the samples associated with each Sample.value
-    sample_types: Option<SampleTypes>,
+    sample_types: SampleTypes,
 }
 
 impl<'a> ReportBuilder<'a> {
     pub fn new(
         profiler: &'a RwLock<Result<Profiler>>,
         timing: ReportTiming,
-        sample_types: Option<SampleTypes>,
+        sample_types: SampleTypes,
     ) -> Self {
         Self {
             frames_post_processor: None,
@@ -147,7 +146,7 @@ impl<'a> ReportBuilder<'a> {
                 Ok(Report {
                     data: hash_map,
                     timing: self.timing.clone(),
-                    sample_types: self.sample_types.clone().unwrap_or_default(),
+                    sample_types: self.sample_types.clone(),
                 })
             }
         }
