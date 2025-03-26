@@ -1,6 +1,5 @@
 use std::time::SystemTime;
 
-use backtrace::Frame;
 use smallvec::SmallVec;
 
 use crate::backtrace::{Trace, TraceImpl};
@@ -9,7 +8,6 @@ use crate::{MAX_DEPTH, MAX_THREAD_NAME};
 
 pub struct Sample {
     pub(crate) backtrace: SmallVec<[<TraceImpl as Trace>::Frame; MAX_DEPTH]>,
-    // pub(crate) thread_name: [u8; MAX_THREAD_NAME],
     pub(crate) thread_name: Vec<u8>,
     pub(crate) thread_id: u64,
     pub(crate) timestamp: SystemTime,
@@ -47,8 +45,6 @@ pub fn sample_current(count: i32) -> Sample {
             false
         }
     });
-
-    // bt.pop
 
     Sample {
         backtrace: bt,

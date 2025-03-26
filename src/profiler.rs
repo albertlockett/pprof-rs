@@ -2,12 +2,10 @@
 
 use std::convert::TryInto;
 use std::os::raw::c_int;
-use std::time::SystemTime;
 
 use nix::sys::signal;
 use once_cell::sync::Lazy;
 use parking_lot::RwLock;
-use smallvec::SmallVec;
 
 #[cfg(any(
     target_arch = "x86_64",
@@ -17,14 +15,13 @@ use smallvec::SmallVec;
 ))]
 use findshlibs::{Segment, SharedLibrary, TargetSharedLibrary};
 
-use crate::backtrace::{Trace, TraceImpl};
 use crate::collector::Collector;
 use crate::error::{Error, Result};
 use crate::frames::UnresolvedFrames;
 use crate::report::ReportBuilder;
-use crate::sample::Sample;
+use crate::sample::{sample_current, Sample};
 use crate::timer::Timer;
-use crate::{sample_current, MAX_DEPTH, MAX_THREAD_NAME};
+use crate::MAX_THREAD_NAME;
 
 pub(crate) static PROFILER: Lazy<RwLock<Result<Profiler>>> =
     Lazy::new(|| RwLock::new(Profiler::new()));
