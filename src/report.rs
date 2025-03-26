@@ -251,10 +251,6 @@ mod protobuf {
                     }
                 }
             }
-            // dedup_str.insert(SAMPLES.into());
-            // dedup_str.insert(COUNT.into());
-            // dedup_str.insert(CPU.into());
-            // dedup_str.insert(NANOSECONDS.into());
             for value_type in self.sample_types.descriptions.iter() {
                 dedup_str.insert(value_type.ty.clone());
                 dedup_str.insert(String::from(&value_type.unit));
@@ -329,26 +325,12 @@ mod protobuf {
                     .collect::<Vec<_>>();
                 let sample = protos::Sample {
                     location_id: locs,
-                    // value: vec![
-                    //     *count as i64,
-                    //     *count as i64 * 1_000_000_000 / self.timing.frequency as i64,
-                    // ],
                     value: values,
                     label: vec![thread_name].into(),
                     ..Default::default()
                 };
                 samples.push(sample);
             }
-            // let samples_value = protos::ValueType {
-            //     ty: *strings.get(SAMPLES).unwrap() as i64,
-            //     unit: *strings.get(COUNT).unwrap() as i64,
-            //     ..Default::default()
-            // };
-            // let time_value = protos::ValueType {
-            //     ty: *strings.get(CPU).unwrap() as i64,
-            //     unit: *strings.get(NANOSECONDS).unwrap() as i64,
-            //     ..Default::default()
-            // };
             let sample_types = self
                 .sample_types
                 .descriptions
@@ -362,7 +344,6 @@ mod protobuf {
                 })
                 .collect::<Vec<_>>();
             let profile = protos::Profile {
-                // sample_type: vec![samples_value, time_value.clone()].into(),
                 sample_type: sample_types.into(),
                 sample: samples.into(),
                 string_table: str_tbl.into(),

@@ -173,7 +173,7 @@ impl ProfilerGuard<'_> {
     }
 }
 
-impl<'a> Drop for ProfilerGuard<'a> {
+impl Drop for ProfilerGuard<'_> {
     fn drop(&mut self) {
         drop(self.timer.take());
 
