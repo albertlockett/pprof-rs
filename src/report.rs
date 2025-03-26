@@ -52,8 +52,6 @@ impl<'a> ReportBuilder<'a> {
         timing: ReportTiming,
         sample_types: Option<SampleTypes>,
     ) -> Self {
-
-        println!("{:?}", sample_types);
         Self {
             frames_post_processor: None,
             profiler,
@@ -232,6 +230,7 @@ mod flamegraph {
 mod protobuf {
     use super::*;
     use crate::{protos, Unit};
+    use log::debug;
     use std::collections::HashSet;
     use std::time::SystemTime;
 
@@ -345,7 +344,10 @@ mod protobuf {
                         ..Default::default()
                     };
 
-                    if sample_type.unit == Unit::Nanoseconds && time_value.is_none() {
+                    if sample_type.unit == Unit::Nanoseconds {
+                        if time_value.is_some() {
+                            debug!("found multiple sample types with timing unit. using {:?} for period_type", sample_type);
+                        }
                         time_value = Some(value_type.clone())
                     }
 
