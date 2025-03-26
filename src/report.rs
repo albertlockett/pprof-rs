@@ -52,6 +52,8 @@ impl<'a> ReportBuilder<'a> {
         timing: ReportTiming,
         sample_types: Option<SampleTypes>,
     ) -> Self {
+
+        println!("{:?}", sample_types);
         Self {
             frames_post_processor: None,
             profiler,
@@ -116,9 +118,7 @@ impl<'a> ReportBuilder<'a> {
 
         match self.profiler.write().as_mut() {
             Err(err) => {
-                // TODO: (albertlockett)  correct weird error
-                // e.g. should say "Error building report" maybe?
-                log::error!("Error in creating profiler: {}", err);
+                log::error!("Error in creating profile report: {}", err);
                 Err(Error::CreatingError)
             }
             Ok(profiler) => {
@@ -231,7 +231,7 @@ mod flamegraph {
 #[allow(clippy::needless_update)]
 mod protobuf {
     use super::*;
-    use crate::protos;
+    use crate::{protos, Unit};
     use std::collections::HashSet;
     use std::time::SystemTime;
 
@@ -331,18 +331,28 @@ mod protobuf {
                 };
                 samples.push(sample);
             }
+            let mut time_value = None;
             let sample_types = self
                 .sample_types
                 .descriptions
                 .iter()
-                .map(|value_type| protos::ValueType {
-                    ty: *strings.get(&value_type.ty.as_str()).unwrap() as i64,
-                    unit: *strings
-                        .get(String::from(&value_type.unit).as_str())
-                        .unwrap() as i64,
-                    ..Default::default()
+                .map(|sample_type| {
+                    let value_type = protos::ValueType {
+                        ty: *strings.get(&sample_type.ty.as_str()).unwrap() as i64,
+                        unit: *strings
+                            .get(String::from(&sample_type.unit).as_str())
+                            .unwrap() as i64,
+                        ..Default::default()
+                    };
+
+                    if sample_type.unit == Unit::Nanoseconds && time_value.is_none() {
+                        time_value = Some(value_type.clone())
+                    }
+
+                    value_type
                 })
                 .collect::<Vec<_>>();
+
             let profile = protos::Profile {
                 sample_type: sample_types.into(),
                 sample: samples.into(),
@@ -356,9 +366,7 @@ mod protobuf {
                     .unwrap_or_default()
                     .as_nanos() as i64,
                 duration_nanos: self.timing.duration.as_nanos() as i64,
-                // period_type: Some(time_value).into(),
-                // TODO(albertlockett) - mettre None ou Some
-                period_type: None.into(),
+                period_type: time_value.into(),
                 period: 1_000_000_000 / self.timing.frequency as i64,
                 ..protos::Profile::default()
             };

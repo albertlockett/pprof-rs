@@ -32,8 +32,6 @@ pub trait Frame: Sized + Clone {
     type S: Symbol;
 
     fn resolve_symbol<F: FnMut(&Self::S)>(&self, cb: F);
-    // fn symbol_address(&self) -> *mut c_void;
-    // fn ip(&self) -> usize;
 }
 
 pub trait Trace {
