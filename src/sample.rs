@@ -48,6 +48,8 @@ pub fn sample_current(count: i32) -> Sample {
         }
     });
 
+    // bt.pop
+
     Sample {
         backtrace: bt,
         thread_name: thread_name.to_owned().into(),
