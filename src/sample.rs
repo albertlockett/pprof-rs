@@ -1,4 +1,41 @@
+use std::time::SystemTime;
+
+
+use backtrace::Frame;
+use smallvec::SmallVec;
+
+use crate::{MAX_DEPTH, MAX_THREAD_NAME};
+use crate::backtrace::{TraceImpl, Trace};
 use crate::timer::ReportTiming;
+
+struct Sample {
+    // backtrace: SmallVec<[<TraceImpl as Trace>::Frame; MAX_DEPTH]>,
+    thread_name: [u8; MAX_THREAD_NAME],
+    thread_id: u64,
+    timestamp: SystemTime,
+    count: isize,
+}
+
+#[no_mangle]
+#[allow(clippy::unnecessary_cast)]
+pub extern "C" fn sample_current() -> Sample {
+    let current_thread = unsafe { libc::pthread_self() };
+    let mut name = [0i8; MAX_THREAD_NAME];
+    let name_ptr = &mut name as *mut [libc::c_char] as *mut libc::c_char;
+    crate::profiler::write_thread_name(current_thread, &mut name);
+    let name = unsafe { std::ffi::CStr::from_ptr(name_ptr) };
+
+    let name_bytes = name.to_owned().into_bytes();
+    let (first_16, _) = name_bytes.split_at(16);
+    let thread_name: [u8; MAX_THREAD_NAME] = first_16.try_into().unwrap();
+    Sample {
+        // backtrace: crate::backtrace::trace(),
+        thread_name: thread_name,
+        thread_id: current_thread as u64,
+        timestamp: SystemTime::now(),
+        count: 1,
+    }
+}
 
 const COUNT: &str = "count";
 const NANOSECONDS: &str = "nanoseconds";

@@ -39,7 +39,7 @@ type FramesPostProcessor = Box<dyn Fn(&mut Frames)>;
 pub struct ReportBuilder<'a> {
     frames_post_processor: Option<FramesPostProcessor>,
     profiler: &'a RwLock<Result<Profiler>>,
-    // TODO(albertlocektt) - soit Optional?
+    // TODO(albertlocektt) - Optional?
     timing: ReportTiming,
 
     /// Descriptions of the samples associated with each Sample.value
@@ -116,8 +116,8 @@ impl<'a> ReportBuilder<'a> {
 
         match self.profiler.write().as_mut() {
             Err(err) => {
-                // TODO: (albertlockett) ca c'est un erreur bizarre a mon avis. corriger?
-                // e.g. devrait dit "Error building report" maybe?
+                // TODO: (albertlockett)  correct weird error
+                // e.g. should say "Error building report" maybe?
                 log::error!("Error in creating profiler: {}", err);
                 Err(Error::CreatingError)
             }
